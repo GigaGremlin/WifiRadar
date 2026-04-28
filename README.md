@@ -1,8 +1,10 @@
 # 📡 WifiRadar
 ### ESP8266 Wifi Radar – Vermeide ZigBee & Bluetooth Störungen
 
-<div align="center">
-  <img width="1280" height="1280" alt="WifiRadar-Build" src="https://github.com/user-attachments/assets/d9080e12-7a63-424b-9f7a-cc5a621ae569" />
+<div align="left">
+  <img width="45%" alt="1" src="https://github.com/user-attachments/assets/d9080e12-7a63-424b-9f7a-cc5a621ae569" />
+  <img width="45%" alt="2" src="https://github.com/user-attachments/assets/ccf34104-74bf-47b6-8397-aadeadea6add" />
+</div>
   <p><em>Mein preiswerter, kleiner, offline Wifi-Präsenzmelder mit 3D-gedrucktem Halter.</em></p>
 </div>
 
