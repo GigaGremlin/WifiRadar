@@ -1,0 +1,287 @@
+# D1MiniRadar-66  FW 3.1 - Final
+# LD2420C  BLE
+# GPIO3 -> Rx 
+# GPIO1 -> Tx
+# GPIO5 -> Out-Pin
+# 5Volt
+# GND
+#######################################################
+
+substitutions:
+  name: d1miniradar             # Nur ein Beispiel
+  friendly_name: D1MiniRadar    # Nur ein Beispiel
+
+
+esphome:
+  name: ${name}
+  name_add_mac_suffix: false
+  friendly_name: ${friendly_name}
+
+esp8266:
+  board: esp01_1m
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret esphome_api_encryption_key
+
+ota:
+  - platform: esphome
+    id: ota_esphome
+  - platform: web_server  # Add this for web-based OTA uploads
+
+web_server:
+  port: 80
+
+wifi:
+  #use_address: 192.168.1.2 # Optional: Entfernen, wenn DHCP bevorzugt wird
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  power_save_mode: NONE # Verhindert, dass das WLAN-Modul kurz schlafen geht
+
+captive_portal:
+#
+# LD2410 Sensor Integration
+uart:
+  id: ld2410_uart_bus
+  tx_pin: GPIO1 # An TX-Pin des LD2410 (D1 Mini GPIO1)
+  rx_pin: GPIO3 # An RX-Pin des LD2410 (D1 Mini GPIO3)
+  baud_rate: 256000 # Standard-Baudrate des LD2410
+  parity: NONE
+  stop_bits: 1
+
+ld2410:
+  id: ld2410_sensor # Eine eindeutige ID für den LD2410 Sensor
+  uart_id: ld2410_uart_bus # Verweist auf den oben definierten UART-Bus
+  # throttle: 1000ms wurde entfernt und durch individuelle Filter ersetzt
+
+binary_sensor:
+  - platform: ld2410
+    ld2410_id: ld2410_sensor
+    has_target:
+      name: "Anwesenheit" # Erkennt Anwesenheit (beweglich oder still)
+      filters:
+        - settle: 2000ms # Standardfilter zur Vermeidung von Updates-Flut
+    has_moving_target:
+      name: "Bewegung" # Erkennt bewegliches Ziel
+      filters:
+        - settle: 2000ms # Standardfilter zur Vermeidung von Updates-Flut
+    has_still_target:
+      name: "Stillstand" # Erkennt stillstehendes Ziel
+      filters:
+        - settle: 2000ms # Standardfilter zur Vermeidung von Updates-Flut
+  - platform: gpio
+    pin: GPIO5 # Der OUT-Pin des LD2410 ist mit GPIO5 verbunden
+    name: "Anwesenheit via OUT-Pin" # Ein neuer Sensor für den OUT-Pin
+    device_class: presence
+    
+select:
+  - platform: ld2410
+    ld2410_id: ld2410_sensor
+    distance_resolution:
+      name: "Distanzauflösung"
+    baud_rate:
+      name: "Baudrate"
+    light_function:
+      name: "Licht-Funktion"
+    out_pin_level:
+      name: "Out-Pin Zustand"
+
+switch:
+  - platform: ld2410
+    ld2410_id: ld2410_sensor
+    engineering_mode:
+      name: "Engineering Modus" # Zum Kalibrieren aktivieren, dann wieder deaktivieren
+    bluetooth:
+      name: "Bluetooth Ein/Aus" # Bluetooth ein-/ausschalten
+
+text_sensor:
+  # ESPHome GG-Firmware Version des Geräts
+  - platform: template
+    name: "GG-Firmware"
+    id: firmware_ver
+    lambda: 'return {"8266-Ver 3.1-Final"};'
+    icon: mdi:tag-outline
+    on_value:
+      then:
+        - logger.log:
+            format: "Eingesetzte Version: %s"
+            args: [ 'x.c_str()' ]  
+  - platform: ld2410
+    ld2410_id: ld2410_sensor
+    version:
+      name: "LD2410 Firmware Version" # Firmware-Version des Sensors
+    mac_address:
+      name: "MAC-Adresse"             # MAC-Adresse des Sensors
+
+sensor:
+  - platform: ld2410
+    ld2410_id: ld2410_sensor
+    moving_distance:
+      name: "Distanz Bewegung" # Distanz des bewegten Ziels in cm
+      filters:
+        - throttle_with_priority: 2000ms # Standardfilter zur Vermeidung von Updates-Flut
+    still_distance:
+      name: "Distanz Stillstand" # Distanz des stillstehenden Ziels in cm
+      filters:
+        - throttle_with_priority: 2000ms # Standardfilter zur Vermeidung von Updates-Flut
+    moving_energy:
+      name: "Bewegungsenergie" # Energielevel für bewegtes Ziel
+      filters:
+        - throttle_with_priority: 2000ms # Standardfilter zur Vermeidung von Updates-Flut
+    still_energy:
+      name: "Stillstandsenergie" # Energielevel für stillstehendes Ziel
+      filters:
+        - throttle_with_priority: 2000ms # Standardfilter zur Vermeidung von Updates-Flut
+    light: # Optional: Lichtempfindlichkeit (nur im Engineering-Modus verfügbar)
+      name: "Lichtempfindlichkeit"
+      filters:
+        - throttle_with_priority: 2000ms # Standardfilter zur Vermeidung von Updates-Flut
+    detection_distance: # Optional: Gesamtdistanz des Ziels
+      name: "Gesamtdistanz des Ziels"
+      filters:
+        - throttle_with_priority: 2000ms # Standardfilter zur Vermeidung von Updates-Flut
+################################# When in engineering mode ##########################################
+    g0:
+      move_energy:
+        name: g0 move energy
+        filters:
+          - throttle_with_priority: 10000ms
+      still_energy:
+        name: g0 still energy
+        filters:
+          - throttle_with_priority: 10000ms
+    g1:
+      move_energy:
+        name: g1 move energy
+        filters:
+          - throttle_with_priority: 100000ms
+      still_energy:
+        name: g1 still energy
+        filters:
+          - throttle_with_priority: 10000ms
+    g2:
+      move_energy:
+        name: g2 move energy
+        filters:
+          - throttle_with_priority: 10000ms
+      still_energy:
+        name: g2 still energy
+        filters:
+          - throttle_with_priority: 10000ms
+    g3:
+      move_energy:
+        name: g3 move energy
+        filters:
+          - throttle_with_priority: 10000ms
+      still_energy:
+        name: g3 still energy
+        filters:
+          - throttle_with_priority: 10000ms
+    g4:
+      move_energy:
+        name: g4 move energy
+        filters:
+          - throttle_with_priority: 10000ms
+      still_energy:
+        name: g4 still energy
+        filters:
+          - throttle_with_priority: 10000ms
+    g5:
+      move_energy:
+        name: g5 move energy
+        filters:
+          - throttle_with_priority: 10000ms
+      still_energy:
+        name: g5 still energy
+        filters:
+          - throttle_with_priority: 10000ms
+    g6:
+      move_energy:
+        name: g6 move energy
+        filters:
+          - throttle_with_priority: 10000ms
+      still_energy:
+        name: g6 still energy
+        filters:
+          - throttle_with_priority: 10000ms
+    g7:
+      move_energy:
+        name: g7 move energy
+        filters:
+          - throttle_with_priority: 10000ms
+      still_energy:
+        name: g7 still energy
+        filters:
+          - throttle_with_priority: 10000ms
+    g8:
+      move_energy:
+        name: g8 move energy
+        filters:
+          - throttle_with_priority: 10000ms
+      still_energy:
+        name: g8 still energy
+        filters:
+          - throttle_with_priority: 10000ms
+
+##########################################################   
+number:
+  - platform: ld2410
+    ld2410_id: ld2410_sensor
+    timeout:
+      name: "Timeout" # Zeit in Sekunden, die der Präsenzstatus nach Verlassen bestehen bleibt 
+    max_move_distance_gate:
+      name: "Max. Bewegungsdistanz" # Maximales Distanz-Gate für Bewegungserkennung
+    max_still_distance_gate:
+      name: "Max. Stillstandsdistanz" # Maximales Distanz-Gate für Stillstandserkennung
+    light_threshold: # Optional: Lichtschwellenwert für die Lichtfunktion
+      name: "Licht Schwellenwert"   
+################################# When in engineering mode ##########################################
+    g0:
+      move_threshold:
+        name: g0 move threshold
+      still_threshold:
+        name: g0 still threshold
+    g1:
+      move_threshold:
+        name: g1 move threshold
+      still_threshold:
+        name: g1 still threshold
+    g2:
+      move_threshold:
+        name: g2 move threshold
+      still_threshold:
+        name: g2 still threshold
+    g3:
+      move_threshold:
+        name: g3 move threshold
+      still_threshold:
+        name: g3 still threshold
+    g4:
+      move_threshold:
+        name: g4 move threshold
+      still_threshold:
+        name: g4 still threshold
+    g5:
+      move_threshold:
+        name: g5 move threshold
+      still_threshold:
+        name: g5 still threshold
+    g6:
+      move_threshold:
+        name: g6 move threshold
+      still_threshold:
+        name: g6 still threshold
+    g7:
+      move_threshold:
+        name: g7 move threshold
+      still_threshold:
+        name: g7 still threshold
+    g8:
+      move_threshold:
+        name: g8 move threshold
+      still_threshold:
+        name: g8 still threshold
