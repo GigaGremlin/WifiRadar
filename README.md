@@ -61,6 +61,10 @@ ein echtes Upgrade für jedes Smart Home.
 
 ---
 
+<div align="center">
+<i>Zuletzt aktualisiert: April 2026</i>
+</div>
+
 </div></div>   
 <div align="center">
    <a href="https://gigagremlin.de">
